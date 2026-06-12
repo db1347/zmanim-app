@@ -201,6 +201,13 @@ class _CompassRose extends StatelessWidget {
       child: Stack(
         alignment: Alignment.center,
         children: [
+          CustomPaint(
+            size: Size(size, size),
+            painter: _TickPainter(
+              tickColor: scheme.outlineVariant,
+              cardinalColor: scheme.outline,
+            ),
+          ),
           for (final (label, angle) in const [
             ('צ', 0.0),
             ('מז', 90.0),
@@ -225,6 +232,42 @@ class _CompassRose extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Degree tick marks around the rose: a tick every 6°, heavier every 30°.
+class _TickPainter extends CustomPainter {
+  const _TickPainter({required this.tickColor, required this.cardinalColor});
+
+  final Color tickColor;
+  final Color cardinalColor;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width / 2;
+
+    for (var deg = 0; deg < 360; deg += 6) {
+      final major = deg % 30 == 0;
+      final paint = Paint()
+        ..color = major ? cardinalColor : tickColor
+        ..strokeWidth = major ? 2.2 : 1.0
+        ..strokeCap = StrokeCap.round;
+      final angle = deg * math.pi / 180;
+      final outer = Offset(
+        center.dx + (radius - 6) * math.sin(angle),
+        center.dy - (radius - 6) * math.cos(angle),
+      );
+      final inner = Offset(
+        center.dx + (radius - (major ? 18 : 12)) * math.sin(angle),
+        center.dy - (radius - (major ? 18 : 12)) * math.cos(angle),
+      );
+      canvas.drawLine(inner, outer, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _TickPainter old) =>
+      old.tickColor != tickColor || old.cardinalColor != cardinalColor;
 }
 
 class _CompassUnavailable extends StatelessWidget {

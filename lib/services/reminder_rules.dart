@@ -46,6 +46,29 @@ class ReminderRules {
     return jc.getDayOfWeek() == 7 || jc.isYomTovAssurBemelacha();
   }
 
+  /// Whether an eruv tavshilin is made on [date]: it is erev Yom Tov, and
+  /// the Yom Tov run starting tomorrow flows directly into Shabbat (Yom Tov
+  /// on Friday, or Thursday–Friday) — so Shabbat cooking must be "started"
+  /// today. E.g. Shavuot 5786 falls on Friday: eruv on Thursday 21.5.2026.
+  static bool needsEruvTavshilin(DateTime date, {required bool inIsrael}) {
+    bool isYomTov(DateTime d) {
+      final jc = JewishCalendar.fromDateTime(d)..inIsrael = inIsrael;
+      return jc.getDayOfWeek() != 7 && jc.isYomTovAssurBemelacha();
+    }
+
+    final tomorrow = DateTime(date.year, date.month, date.day + 1);
+    if (!isYomTov(tomorrow)) return false;
+
+    // Walk forward through the Yom Tov run; eruv is needed iff the run
+    // reaches Friday (so Shabbat follows immediately).
+    var day = tomorrow;
+    for (var i = 0; i < 3 && isYomTov(day); i++) {
+      if (day.weekday == DateTime.friday) return true;
+      day = DateTime(day.year, day.month, day.day + 1);
+    }
+    return false;
+  }
+
   /// Whether [date] is a candle-lighting eve (erev Shabbat or erev Yom Tov
   /// with standard before-sunset lighting).
   static bool isCandleLightingEve(DateTime date, {required bool inIsrael}) {

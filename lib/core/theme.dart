@@ -35,6 +35,9 @@ class YeadutTheme {
     ).copyWith(
       primary: deepBlue,
       tertiary: gold,
+      // Warm candle-gold container (the auto-derived one drifts lavender).
+      tertiaryContainer: const Color(0xFFF6E3BD),
+      onTertiaryContainer: const Color(0xFF4A3A05),
     );
     return _base(scheme).copyWith(scaffoldBackgroundColor: parchment);
   }
@@ -44,7 +47,11 @@ class YeadutTheme {
       seedColor: midBlue,
       brightness: Brightness.dark,
       surface: nightBlue,
-    ).copyWith(tertiary: goldBright);
+    ).copyWith(
+      tertiary: goldBright,
+      tertiaryContainer: const Color(0xFF453512),
+      onTertiaryContainer: const Color(0xFFF4C466),
+    );
     return _base(scheme).copyWith(scaffoldBackgroundColor: nightBlue);
   }
 

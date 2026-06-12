@@ -97,7 +97,12 @@ class _AskScreenState extends State<AskScreen> {
           Expanded(
             child: !hasKey && _messages.isEmpty
                 ? const _KeySetupPrompt()
-                : ListView.builder(
+                : _messages.isEmpty
+                    ? _SuggestionChips(onPick: (q) {
+                        _input.text = q;
+                        _send();
+                      })
+                    : ListView.builder(
                     controller: _scroll,
                     padding: const EdgeInsets.all(12),
                     itemCount: _messages.length + (_sending ? 1 : 0),
@@ -194,6 +199,59 @@ class _MessageBubble extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+/// Starter questions shown before the first message — teach by example
+/// what the assistant is good at.
+class _SuggestionChips extends StatelessWidget {
+  const _SuggestionChips({required this.onPick});
+
+  final ValueChanged<String> onPick;
+
+  static const _suggestions = [
+    'מה מברכים על במבה?',
+    'עד מתי אפשר להתפלל שחרית היום?',
+    'מה ההבדל בין שיטת הגר״א למגן אברהם?',
+    'שכחתי לספור ספירת העומר אתמול — מה עושים?',
+    'אילו מלאכות אסורות ביום טוב לעומת שבת?',
+    'מה זה עירוב תבשילין ומתי צריך אותו?',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.question_answer_outlined,
+                size: 44, color: scheme.outline),
+            const SizedBox(height: 8),
+            Text('על מה תרצו לשאול?',
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: scheme.onSurfaceVariant)),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              alignment: WrapAlignment.center,
+              children: [
+                for (final q in _suggestions)
+                  ActionChip(
+                    label: Text(q, style: const TextStyle(fontSize: 13)),
+                    onPressed: () => onPick(q),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

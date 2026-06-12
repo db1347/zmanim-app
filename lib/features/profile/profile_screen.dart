@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/user_profile.dart';
@@ -155,6 +156,21 @@ class ProfileScreen extends StatelessWidget {
               'הזמנים מחושבים במכשיר באמצעות מנוע kosher_dart (גרסת '
               'KosherJava). תשובות הבינה המלאכותית הן לימודיות בלבד ואינן '
               'פסק הלכה — לפסיקה מעשית פנו לרב.',
+            ),
+          ),
+          FutureBuilder<PackageInfo>(
+            future: PackageInfo.fromPlatform(),
+            builder: (context, snapshot) => ListTile(
+              leading: const Icon(Icons.verified_outlined),
+              title: const Text('גרסה'),
+              trailing: Text(
+                snapshot.hasData
+                    ? '${snapshot.data!.version} (${snapshot.data!.buildNumber})'
+                    : '…',
+                style: TextStyle(
+                    color: Theme.of(context).colorScheme.outline,
+                    fontSize: 14),
+              ),
             ),
           ),
         ],

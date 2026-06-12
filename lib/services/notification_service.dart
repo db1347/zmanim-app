@@ -35,6 +35,7 @@ class NotificationService {
   static const _alarmIdBase = 300;
   static const _omerIdBase = 400;
   static const _eventIdBase = 500;
+  static const _eruvIdBase = 600;
 
   /// FLAG_INSISTENT — Android repeats the notification sound until the
   /// notification is cancelled (here: by its own timeout).
@@ -137,6 +138,7 @@ class NotificationService {
       if (p.tefillinReminderEnabled) await _scheduleTefillin(p, now);
       if (p.candleReminderEnabled) await _scheduleCandleLighting(p, now);
       if (p.omerReminderEnabled) await _scheduleOmer(p, now);
+      await _scheduleEruvTavshilin(p, now);
       await _scheduleEvents(p, await EventStore.load(), now);
       await _scheduleShabbatAlarms(p, await AlarmStore.load(), now);
     } catch (e) {
@@ -220,6 +222,29 @@ class NotificationService {
         id: _omerIdBase + i,
         title: 'ספירת העומר',
         body: 'הערב סופרים יום $omerDay לעומר 🌙',
+        scheduledDate: tz.TZDateTime.from(fireAt, tz.local),
+        notificationDetails: _reminderDetails,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      );
+    }
+  }
+
+  /// Eruv tavshilin alert: when Yom Tov flows into Shabbat, remind at
+  /// 10:00 on the erev (always on — this is the reminder people forget).
+  Future<void> _scheduleEruvTavshilin(UserProfile p, DateTime now) async {
+    for (int i = 0; i < 28; i++) {
+      final day = DateTime(now.year, now.month, now.day + i);
+      if (!ReminderRules.needsEruvTavshilin(day, inIsrael: p.inIsrael)) {
+        continue;
+      }
+      final fireAt = DateTime(day.year, day.month, day.day, 10, 0);
+      if (!fireAt.isAfter(now)) continue;
+
+      await _plugin.zonedSchedule(
+        id: _eruvIdBase + i,
+        title: 'עירוב תבשילין',
+        body: 'יום טוב נכנס הערב ונמשך לשבת — מניחים עירוב תבשילין '
+            'היום לפני כניסת החג.',
         scheduledDate: tz.TZDateTime.from(fireAt, tz.local),
         notificationDetails: _reminderDetails,
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
