@@ -60,13 +60,21 @@ class WelcomeStep extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.auto_awesome, size: 72, color: scheme.primary),
-            const SizedBox(height: 16),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(28),
+              child: Image.asset(
+                'assets/icon/icon.png',
+                width: 108,
+                height: 108,
+              ),
+            ),
+            const SizedBox(height: 20),
             Text(
               'יהדות',
               style: TextStyle(
-                fontSize: 42,
-                fontWeight: FontWeight.w800,
+                fontFamily: 'FrankRuhlLibre',
+                fontSize: 46,
+                fontWeight: FontWeight.w900,
                 color: scheme.primary,
               ),
             ),
@@ -84,7 +92,7 @@ class WelcomeStep extends StatelessWidget {
   }
 }
 
-class LocationStep extends StatelessWidget {
+class LocationStep extends StatefulWidget {
   const LocationStep({
     super.key,
     required this.locating,
@@ -99,7 +107,15 @@ class LocationStep extends StatelessWidget {
   final ValueChanged<ResolvedLocation> onPickCity;
 
   @override
+  State<LocationStep> createState() => _LocationStepState();
+}
+
+class _LocationStepState extends State<LocationStep> {
+  String _query = '';
+
+  @override
   Widget build(BuildContext context) {
+    final cities = filterCities(_query);
     return _StepScaffold(
       title: 'איפה אתם?',
       subtitle: 'כל זמן הלכתי, זמני הדלקת נרות ומצפן התפילה תלויים '
@@ -108,31 +124,40 @@ class LocationStep extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           FilledButton.icon(
-            onPressed: locating ? null : onUseGps,
-            icon: locating
+            onPressed: widget.locating ? null : widget.onUseGps,
+            icon: widget.locating
                 ? const SizedBox(
                     width: 18,
                     height: 18,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.my_location),
-            label: Text(locating ? 'מאתר…' : 'השתמשו במיקום שלי'),
+            label: Text(widget.locating ? 'מאתר…' : 'השתמשו במיקום שלי'),
           ),
-          const SizedBox(height: 16),
-          Text('או בחרו עיר:',
-              style: TextStyle(color: Theme.of(context).colorScheme.outline)),
+          const SizedBox(height: 12),
+          TextField(
+            onChanged: (v) => setState(() => _query = v),
+            decoration: InputDecoration(
+              hintText: 'חיפוש עיר…',
+              prefixIcon: const Icon(Icons.search, size: 20),
+              isDense: true,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
           const SizedBox(height: 8),
           Expanded(
             child: ListView(
               children: [
-                for (final city in kCities)
+                for (final city in cities)
                   ListTile(
                     dense: true,
                     title: Text(city.name),
-                    trailing: city.name == selectedName
+                    trailing: city.name == widget.selectedName
                         ? const Icon(Icons.check)
                         : null,
-                    onTap: () => onPickCity(city),
+                    onTap: () => widget.onPickCity(city),
                   ),
               ],
             ),

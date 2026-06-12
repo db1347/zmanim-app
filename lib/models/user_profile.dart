@@ -64,6 +64,12 @@ class UserProfile {
   final bool candleReminderEnabled;
   final int candleReminderLeadMinutes;
 
+  /// Sefirat HaOmer nightly reminder (seasonal; suppressed on Shabbat/chag).
+  final bool omerReminderEnabled;
+
+  /// 'system' | 'light' | 'dark'.
+  final String themeMode;
+
   // AI (key stored locally on device only)
   final String anthropicApiKey;
   final String aiModel;
@@ -86,6 +92,8 @@ class UserProfile {
     this.tefillinReminderMinute = 0,
     this.candleReminderEnabled = false,
     this.candleReminderLeadMinutes = 30,
+    this.omerReminderEnabled = true,
+    this.themeMode = 'system',
     this.anthropicApiKey = '',
     this.aiModel = kDefaultAiModel,
   });
@@ -108,6 +116,8 @@ class UserProfile {
     int? tefillinReminderMinute,
     bool? candleReminderEnabled,
     int? candleReminderLeadMinutes,
+    bool? omerReminderEnabled,
+    String? themeMode,
     String? anthropicApiKey,
     String? aiModel,
   }) {
@@ -135,6 +145,8 @@ class UserProfile {
           candleReminderEnabled ?? this.candleReminderEnabled,
       candleReminderLeadMinutes:
           candleReminderLeadMinutes ?? this.candleReminderLeadMinutes,
+      omerReminderEnabled: omerReminderEnabled ?? this.omerReminderEnabled,
+      themeMode: themeMode ?? this.themeMode,
       anthropicApiKey: anthropicApiKey ?? this.anthropicApiKey,
       aiModel: aiModel ?? this.aiModel,
     );
@@ -161,6 +173,8 @@ class UserProfile {
         'tefillinReminderMinute': tefillinReminderMinute,
         'candleReminderEnabled': candleReminderEnabled,
         'candleReminderLeadMinutes': candleReminderLeadMinutes,
+        'omerReminderEnabled': omerReminderEnabled,
+        'themeMode': themeMode,
         'aiModel': aiModel,
       };
 
@@ -196,6 +210,9 @@ class UserProfile {
           json['candleReminderEnabled'] as bool? ?? def.candleReminderEnabled,
       candleReminderLeadMinutes: json['candleReminderLeadMinutes'] as int? ??
           def.candleReminderLeadMinutes,
+      omerReminderEnabled:
+          json['omerReminderEnabled'] as bool? ?? def.omerReminderEnabled,
+      themeMode: json['themeMode'] as String? ?? def.themeMode,
       // Legacy profiles stored the key in the blob; read it for migration.
       anthropicApiKey:
           json['anthropicApiKey'] as String? ?? def.anthropicApiKey,

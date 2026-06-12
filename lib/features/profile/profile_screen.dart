@@ -126,6 +126,22 @@ class ProfileScreen extends StatelessWidget {
                 update(p.copyWith(candleLightingMinutes: v ? 40 : 18)),
           ),
           const Divider(),
+          const _SectionHeader('תצוגה'),
+          ListTile(
+            leading: const Icon(Icons.brightness_6_outlined),
+            title: const Text('מצב תצוגה'),
+            trailing: DropdownButton<String>(
+              value: p.themeMode,
+              underline: const SizedBox.shrink(),
+              onChanged: (v) => update(p.copyWith(themeMode: v)),
+              items: const [
+                DropdownMenuItem(value: 'system', child: Text('לפי המערכת')),
+                DropdownMenuItem(value: 'light', child: Text('בהיר')),
+                DropdownMenuItem(value: 'dark', child: Text('כהה')),
+              ],
+            ),
+          ),
+          const Divider(),
           RemindersSection(profile: p, onUpdate: update),
           const Divider(),
           const _SectionHeader('בינה מלאכותית'),
@@ -151,49 +167,72 @@ class ProfileScreen extends StatelessWidget {
     UserProfile p,
     Future<void> Function(UserProfile) update,
   ) async {
+    var query = '';
     await showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
-      builder: (sheetContext) => ListView(
-        children: [
-          ListTile(
-            leading: const Icon(Icons.my_location),
-            title: const Text('השתמשו במיקום שלי'),
-            onTap: () async {
-              Navigator.of(sheetContext).pop();
-              final loc = await LocationService.getCurrent();
-              if (loc == null) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content:
-                          Text('המיקום אינו זמין — בדקו את ההרשאות.')));
-                }
-                return;
-              }
-              await update(p.copyWith(
-                locationName: loc.name,
-                latitude: loc.latitude,
-                longitude: loc.longitude,
-                inIsrael: loc.inIsrael,
-              ));
-            },
+      isScrollControlled: true,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (sheetContext, setSheetState) => SizedBox(
+          height: MediaQuery.of(sheetContext).size.height * 0.75,
+          child: ListView(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.my_location),
+                title: const Text('השתמשו במיקום שלי'),
+                onTap: () async {
+                  Navigator.of(sheetContext).pop();
+                  final loc = await LocationService.getCurrent();
+                  if (loc == null) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text(
+                                  'המיקום אינו זמין — בדקו את ההרשאות.')));
+                    }
+                    return;
+                  }
+                  await update(p.copyWith(
+                    locationName: loc.name,
+                    latitude: loc.latitude,
+                    longitude: loc.longitude,
+                    inIsrael: loc.inIsrael,
+                  ));
+                },
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: TextField(
+                  onChanged: (v) => setSheetState(() => query = v),
+                  decoration: InputDecoration(
+                    hintText: 'חיפוש עיר…',
+                    prefixIcon: const Icon(Icons.search, size: 20),
+                    isDense: true,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+              for (final city in filterCities(query))
+                ListTile(
+                  title: Text(city.name),
+                  trailing: city.name == p.locationName
+                      ? const Icon(Icons.check)
+                      : null,
+                  onTap: () async {
+                    Navigator.of(sheetContext).pop();
+                    await update(p.copyWith(
+                      locationName: city.name,
+                      latitude: city.latitude,
+                      longitude: city.longitude,
+                      inIsrael: city.inIsrael,
+                    ));
+                  },
+                ),
+            ],
           ),
-          for (final city in kCities)
-            ListTile(
-              title: Text(city.name),
-              trailing:
-                  city.name == p.locationName ? const Icon(Icons.check) : null,
-              onTap: () async {
-                Navigator.of(sheetContext).pop();
-                await update(p.copyWith(
-                  locationName: city.name,
-                  latitude: city.latitude,
-                  longitude: city.longitude,
-                  inIsrael: city.inIsrael,
-                ));
-              },
-            ),
-        ],
+        ),
       ),
     );
   }

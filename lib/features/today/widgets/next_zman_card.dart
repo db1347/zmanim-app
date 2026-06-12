@@ -1,83 +1,129 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/theme.dart';
 import '../../../models/zman_item.dart';
 
-/// Hero card: countdown to the next halachic time of the day.
+/// Hero card: countdown to the next halachic time, with a progress bar
+/// showing how far through the interval since the previous zman we are.
 class NextZmanCard extends StatelessWidget {
-  const NextZmanCard({super.key, required this.next, required this.now});
+  const NextZmanCard({
+    super.key,
+    required this.next,
+    required this.previous,
+    required this.now,
+  });
 
   final ZmanItem? next;
+  final ZmanItem? previous;
   final DateTime now;
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final item = next;
 
-    return Card(
-      color: scheme.primaryContainer,
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: item == null
-            ? Text(
-                'כל זמני היום עברו.\nנתראה בעלות השחר.',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: scheme.onPrimaryContainer,
+    double? progress;
+    if (item?.time != null && previous?.time != null) {
+      final total =
+          item!.time!.difference(previous!.time!).inSeconds.toDouble();
+      if (total > 0) {
+        progress =
+            (now.difference(previous!.time!).inSeconds / total).clamp(0, 1);
+      }
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        gradient: const LinearGradient(
+          begin: Alignment.topRight,
+          end: Alignment.bottomLeft,
+          colors: [YeadutTheme.midBlue, YeadutTheme.deepBlue],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: YeadutTheme.deepBlue.withValues(alpha: 0.30),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(20),
+      child: item == null
+          ? const Text(
+              'כל זמני היום עברו.\nנתראה בעלות השחר.',
+              style: TextStyle(fontSize: 16, color: Colors.white, height: 1.5),
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.schedule,
+                        size: 15, color: YeadutTheme.goldBright),
+                    const SizedBox(width: 6),
+                    Text(
+                      'הזמן הבא',
+                      style: TextStyle(
+                        fontSize: 12,
+                        letterSpacing: 1.1,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white.withValues(alpha: 0.75),
+                      ),
+                    ),
+                  ],
                 ),
-              )
-            : Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'הזמן הבא',
-                    style: TextStyle(
-                      fontSize: 12,
-                      letterSpacing: 1.2,
-                      fontWeight: FontWeight.w600,
-                      color: scheme.onPrimaryContainer.withValues(alpha: 0.7),
-                    ),
+                const SizedBox(height: 8),
+                Text(
+                  item.name,
+                  style: const TextStyle(
+                    fontSize: 25,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    item.name,
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w700,
-                      color: scheme.onPrimaryContainer,
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      _countdown(item.time!, now),
+                      style: const TextStyle(
+                        fontSize: 38,
+                        fontWeight: FontWeight.w800,
+                        fontFeatures: [FontFeature.tabularFigures()],
+                        color: YeadutTheme.goldBright,
+                        height: 1.1,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        _countdown(item.time!, now),
+                    const SizedBox(width: 12),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Text(
+                        'בשעה ${DateFormat.Hm().format(item.time!)}',
                         style: TextStyle(
-                          fontSize: 40,
-                          fontWeight: FontWeight.w800,
-                          fontFeatures: const [FontFeature.tabularFigures()],
-                          color: scheme.onPrimaryContainer,
+                          fontSize: 16,
+                          color: Colors.white.withValues(alpha: 0.85),
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Text(
-                          'בשעה ${DateFormat.Hm().format(item.time!)}',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: scheme.onPrimaryContainer
-                                .withValues(alpha: 0.8),
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
+                  ],
+                ),
+                if (progress != null) ...[
+                  const SizedBox(height: 14),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(3),
+                    child: LinearProgressIndicator(
+                      value: progress,
+                      minHeight: 5,
+                      backgroundColor: Colors.white.withValues(alpha: 0.18),
+                      valueColor: const AlwaysStoppedAnimation(
+                          YeadutTheme.goldBright),
+                    ),
                   ),
                 ],
-              ),
-      ),
+              ],
+            ),
     );
   }
 

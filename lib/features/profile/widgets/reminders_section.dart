@@ -113,6 +113,18 @@ class RemindersSection extends StatelessWidget {
               ],
             ),
           ),
+        SwitchListTile(
+          secondary: const Icon(Icons.nightlight_outlined),
+          title: const Text('ספירת העומר'),
+          subtitle: const Text(
+              'בימי הספירה, כ־20 דקות אחרי צאת הכוכבים · לא בליל שבת וחג'),
+          value: p.omerReminderEnabled,
+          onChanged: (v) async {
+            final granted = !v ||
+                await context.read<NotificationService>().requestPermissions();
+            await onUpdate(p.copyWith(omerReminderEnabled: v && granted));
+          },
+        ),
       ],
     );
   }

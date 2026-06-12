@@ -14,8 +14,15 @@ class YeadutApp extends StatelessWidget {
   Widget build(BuildContext context) {
     final onboarded = context
         .select<SettingsService, bool>((s) => s.profile.onboardingComplete);
+    final themeMode = context.select<SettingsService, ThemeMode>(
+        (s) => switch (s.profile.themeMode) {
+              'light' => ThemeMode.light,
+              'dark' => ThemeMode.dark,
+              _ => ThemeMode.system,
+            });
     return MaterialApp(
       title: 'יהדות',
+      themeMode: themeMode,
       debugShowCheckedModeBanner: false,
       // Hebrew-first: the app locale is Hebrew, which also flips the whole
       // UI to RTL via the framework.

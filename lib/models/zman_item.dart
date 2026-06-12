@@ -26,6 +26,16 @@ class DayZmanim {
     }
     return null;
   }
+
+  /// The latest zman at or before [now] (for interval progress display).
+  ZmanItem? previousBefore(DateTime now) {
+    ZmanItem? prev;
+    for (final item in items) {
+      final t = item.time;
+      if (t != null && !t.isAfter(now)) prev = item;
+    }
+    return prev;
+  }
 }
 
 /// Candle lighting / havdalah for the next Shabbat or Yom Tov.

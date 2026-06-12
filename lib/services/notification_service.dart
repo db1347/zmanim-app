@@ -1,13 +1,17 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
+import 'package:kosher_dart/kosher_dart.dart';
 import 'package:timezone/data/latest.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
 import '../core/constants.dart';
+import '../models/hebrew_event.dart';
 import '../models/shabbat_alarm.dart';
 import '../models/user_profile.dart';
 import 'alarm_store.dart';
+import 'event_store.dart';
+import 'hebrew_event_service.dart';
 import 'reminder_rules.dart';
 import 'zmanim_service.dart';
 
@@ -29,6 +33,8 @@ class NotificationService {
   static const _tefillinIdBase = 100;
   static const _candleIdBase = 200;
   static const _alarmIdBase = 300;
+  static const _omerIdBase = 400;
+  static const _eventIdBase = 500;
 
   /// FLAG_INSISTENT — Android repeats the notification sound until the
   /// notification is cancelled (here: by its own timeout).
@@ -130,6 +136,8 @@ class NotificationService {
       final now = DateTime.now();
       if (p.tefillinReminderEnabled) await _scheduleTefillin(p, now);
       if (p.candleReminderEnabled) await _scheduleCandleLighting(p, now);
+      if (p.omerReminderEnabled) await _scheduleOmer(p, now);
+      await _scheduleEvents(p, await EventStore.load(), now);
       await _scheduleShabbatAlarms(p, await AlarmStore.load(), now);
     } catch (e) {
       debugPrint('NotificationService: reschedule failed: $e');
@@ -181,6 +189,86 @@ class NotificationService {
         notificationDetails: _reminderDetails,
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       );
+    }
+  }
+
+  /// Nightly Sefirat HaOmer reminder, ~20 min after tzeit (when the new
+  /// count begins). The evening of civil day D belongs to Jewish day D+1 —
+  /// suppressed when that evening is Shabbat or Yom Tov.
+  Future<void> _scheduleOmer(UserProfile p, DateTime now) async {
+    for (int i = 0; i < kReminderScheduleWindowDays; i++) {
+      final day = DateTime(now.year, now.month, now.day + i);
+      final eveningJewishDay = DateTime(day.year, day.month, day.day + 1);
+      if (ReminderRules.isRestrictedDay(eveningJewishDay,
+          inIsrael: p.inIsrael)) {
+        continue;
+      }
+
+      // The count said on this evening:
+      final omerDay = (JewishCalendar.fromDateTime(eveningJewishDay)
+            ..inIsrael = p.inIsrael)
+          .getDayOfOmer();
+      if (omerDay < 1 || omerDay > 49) continue;
+
+      final tzeit = ZmanimService.tzeit(
+          ZmanimService.calendarFor(p, day), p.tzeitShita);
+      if (tzeit == null) continue;
+      final fireAt = tzeit.add(const Duration(minutes: 20));
+      if (!fireAt.isAfter(now)) continue;
+
+      await _plugin.zonedSchedule(
+        id: _omerIdBase + i,
+        title: 'ספירת העומר',
+        body: 'הערב סופרים יום $omerDay לעומר 🌙',
+        scheduledDate: tz.TZDateTime.from(fireAt, tz.local),
+        notificationDetails: _reminderDetails,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      );
+    }
+  }
+
+  /// Hebrew-date event reminders: candle-lighting note the afternoon
+  /// before (yahrzeit candles are lit at sunset) + morning-of, skipping
+  /// mornings of Shabbat/Yom Tov.
+  Future<void> _scheduleEvents(
+      UserProfile p, List<HebrewEvent> events, DateTime now) async {
+    var id = _eventIdBase;
+    for (final event in events) {
+      final occurrence = HebrewEventService.nextOccurrence(event, now);
+      final daysAway = occurrence
+          .difference(DateTime(now.year, now.month, now.day))
+          .inDays;
+      if (daysAway > 35) continue; // topped up on every launch
+
+      if (event.type == HebrewEventType.yahrzeit) {
+        final eve = DateTime(occurrence.year, occurrence.month,
+            occurrence.day - 1, 16, 0);
+        if (eve.isAfter(now)) {
+          await _plugin.zonedSchedule(
+            id: id++,
+            title: '🕯️ ${event.name}',
+            body: 'היארצייט מתחיל הערב — מדליקים נר נשמה לפני השקיעה.',
+            scheduledDate: tz.TZDateTime.from(eve, tz.local),
+            notificationDetails: _reminderDetails,
+            androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          );
+        }
+      }
+
+      final morning = DateTime(
+          occurrence.year, occurrence.month, occurrence.day, 9, 0);
+      if (morning.isAfter(now) &&
+          !ReminderRules.isRestrictedDay(occurrence, inIsrael: p.inIsrael)) {
+        await _plugin.zonedSchedule(
+          id: id++,
+          title: '${event.type.emoji} ${event.name}',
+          body: 'היום: ${event.type.label} '
+              '(${HebrewEventService.dateLabel(event)}).',
+          scheduledDate: tz.TZDateTime.from(morning, tz.local),
+          notificationDetails: _reminderDetails,
+          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        );
+      }
     }
   }
 

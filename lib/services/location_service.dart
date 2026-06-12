@@ -80,7 +80,48 @@ const List<ResolvedLocation> kCities = [
       latitude: -26.2041,
       longitude: 28.0473,
       inIsrael: false),
+  ResolvedLocation(
+      name: 'פתח תקווה', latitude: 32.0871, longitude: 34.8878, inIsrael: true),
+  ResolvedLocation(
+      name: 'אשדוד', latitude: 31.8014, longitude: 34.6435, inIsrael: true),
+  ResolvedLocation(
+      name: 'נתניה', latitude: 32.3215, longitude: 34.8532, inIsrael: true),
+  ResolvedLocation(
+      name: 'מודיעין', latitude: 31.8928, longitude: 35.0153, inIsrael: true),
+  ResolvedLocation(
+      name: 'צפת', latitude: 32.9646, longitude: 35.4960, inIsrael: true),
+  ResolvedLocation(
+      name: 'טבריה', latitude: 32.7922, longitude: 35.5312, inIsrael: true),
+  ResolvedLocation(
+      name: 'אילת', latitude: 29.5577, longitude: 34.9519, inIsrael: true),
+  ResolvedLocation(
+      name: 'רחובות', latitude: 31.8928, longitude: 34.8113, inIsrael: true),
+  ResolvedLocation(
+      name: 'שיקגו', latitude: 41.8781, longitude: -87.6298, inIsrael: false),
+  ResolvedLocation(
+      name: 'בולטימור', latitude: 39.2904, longitude: -76.6122, inIsrael: false),
+  ResolvedLocation(
+      name: 'מונסי', latitude: 41.1115, longitude: -74.0687, inIsrael: false),
+  ResolvedLocation(
+      name: 'בוסטון', latitude: 42.3601, longitude: -71.0589, inIsrael: false),
+  ResolvedLocation(
+      name: 'מונטריאול', latitude: 45.5017, longitude: -73.5673, inIsrael: false),
+  ResolvedLocation(
+      name: 'ציריך', latitude: 47.3769, longitude: 8.5417, inIsrael: false),
+  ResolvedLocation(
+      name: 'אמסטרדם', latitude: 52.3676, longitude: 4.9041, inIsrael: false),
+  ResolvedLocation(
+      name: 'סידני', latitude: -33.8688, longitude: 151.2093, inIsrael: false),
+  ResolvedLocation(
+      name: 'סאו פאולו', latitude: -23.5505, longitude: -46.6333, inIsrael: false),
 ];
+
+/// Cities filtered by a Hebrew search query (substring match).
+List<ResolvedLocation> filterCities(String query) {
+  final q = query.trim();
+  if (q.isEmpty) return kCities;
+  return kCities.where((c) => c.name.contains(q)).toList();
+}
 
 /// Rough Israel bounding box, used to flag GPS fixes inside Israel.
 bool _looksLikeIsrael(double lat, double lng) =>

@@ -6,10 +6,13 @@
 
 | Feature | Status | Notes |
 |---|---|---|
-| Onboarding & profile | ✅ | מיקום, מגדר, נוסח, שיטת זמנים — הכול בעברית, ניתן לדילוג |
-| Zmanim dashboard | ✅ | כל זמני היום לפי שיטת המשתמש (גר״א/מג״א, עלות וצאת), ספירה לאחור לזמן הבא |
-| Hebrew calendar | ✅ | לוח חודשי עברי/לועזי, חגים, פרשה, עומר, דף יומי |
+| Onboarding & profile | ✅ | מיקום (GPS או 33 ערים + חיפוש), מגדר, נוסח, שיטת זמנים |
+| Zmanim dashboard | ✅ | כל זמני היום לפי שיטת המשתמש, ספירה לאחור + מד התקדמות |
+| Hebrew calendar | ✅ | לוח חודשי עברי/לועזי, חגים, פרשה, דף יומי |
 | Shabbat/Holiday card | ✅ | הדלקת נרות והבדלה לפי השיטה, מצב ארץ ישראל/חו״ל |
+| **Sefirat HaOmer** | ✅ | נוסח מלא מנוקד לכל 49 הימים, ברכה, ספירות, רצף, תזכורת אחרי צאת הכוכבים (לא בליל שבת/חג) |
+| **Hebrew-date events** | ✅ | יארצייט/יום הולדת/נישואין לפי תאריך עברי — כולל אדר בשנה מעוברת ול׳ בחודש חסר; תזכורת נר נשמה בערב + בוקר האירוע |
+| **Daf Yomi tracker** | ✅ | הדף של היום + סימון «סיימתי» ורצף לימוד |
 | Prayer compass | ✅ | מצפן לכיוון הר הבית — קו גדול או קו ישר, רטט בכיוון מדויק |
 | Smart reminders | ✅ | תפילין והדלקת נרות עם השתקה הלכתית (שבת, יו״ט, חוה״מ, ת״ב) |
 | **Shabbat alarm (real OS alarms)** | ✅ | התראות מערכת מדויקות בערוץ Alarm: מסך מלא, צליל בלולאה, כיבוי עצמי — בלי מגע. בנוסף: מצב שבת בתוך האפליקציה (חובה ב־iOS) |
@@ -17,6 +20,8 @@
 | Bracha scanner | ✅ | זיהוי מאכל בתמונה (Claude vision) + מאגר ברכות עברי לא־מקוון |
 | Hechsher lookup | ✅ | סריקת ברקוד + מאגר הדגמה |
 | Kosher situations | ✅ | זמני המתנה בשר/חלב לפי מנהג; תקלות כשרות מופנות לרב |
+| Dark mode | ✅ | לפי המערכת / בהיר / כהה |
+| Visual identity | ✅ | אייקון מגן דוד מוזהב (adaptive), מסך פתיחה ממותג, גופני Heebo + Frank Ruhl Libre מובנים (לא דורשים רשת) |
 
 ## How the Shabbat alarm works
 
@@ -54,6 +59,22 @@ flutter run            # device or simulator
 flutter test           # unit tests
 flutter analyze
 ```
+
+## Release builds
+
+Release signing reads `android/key.properties` + `android/upload-keystore.jks`
+(both git-ignored — **back the keystore up somewhere safe**; losing it means
+losing the ability to update a published app). Without them the build falls
+back to debug signing.
+
+```bash
+flutter build apk --release        # signed, minified APK (sideload)
+flutter build appbundle --release  # AAB for Google Play
+```
+
+R8 minification + resource shrinking are enabled; keep rules for
+flutter_local_notifications (Gson) and ML Kit live in
+`android/app/proguard-rules.pro`.
 
 ## Known limitations
 

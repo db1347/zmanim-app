@@ -4,12 +4,15 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/theme.dart';
 import '../../models/user_profile.dart';
 import '../../models/zman_item.dart';
 import '../../services/calendar_service.dart';
+import '../../services/omer_service.dart';
 import '../../services/settings_service.dart';
 import '../../services/zmanim_service.dart';
 import '../calendar/calendar_screen.dart';
+import '../omer/omer_screen.dart';
 import 'widgets/next_zman_card.dart';
 import 'widgets/shabbat_card.dart';
 
@@ -83,12 +86,17 @@ class _TodayScreenState extends State<TodayScreen> {
         children: [
           _DateHeader(info: info, now: _now, locationName: profile.locationName),
           const SizedBox(height: 12),
-          NextZmanCard(next: day.nextAfter(_now), now: _now),
+          NextZmanCard(
+            next: day.nextAfter(_now),
+            previous: day.previousBefore(_now),
+            now: _now,
+          ),
           const SizedBox(height: 12),
           if (shabbat != null) ...[
             ShabbatCard(times: shabbat),
             const SizedBox(height: 12),
           ],
+          _OmerCard(profile: profile, now: _now),
           Card(
             child: Column(
               children: [
@@ -175,7 +183,6 @@ class _DateHeader extends StatelessWidget {
       if (info.holiday.isNotEmpty) info.holiday,
       if (info.isRoshChodesh) 'ראש חודש',
       if (info.isFastDay) 'יום תענית',
-      if (info.omerDay > 0) 'יום ${info.omerDay} לעומר',
     ];
 
     return Column(
@@ -184,8 +191,9 @@ class _DateHeader extends StatelessWidget {
         Text(
           info.hebrewDate,
           style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.w700,
+            fontFamily: YeadutTheme.displayFont,
+            fontSize: 26,
+            fontWeight: FontWeight.w900,
             color: scheme.primary,
           ),
         ),
@@ -215,6 +223,48 @@ class _DateHeader extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+/// Compact Sefirat HaOmer entry point — only visible during the omer.
+class _OmerCard extends StatelessWidget {
+  const _OmerCard({required this.profile, required this.now});
+
+  final UserProfile profile;
+  final DateTime now;
+
+  @override
+  Widget build(BuildContext context) {
+    final count = OmerService.currentCount(profile, now);
+    if (count == null) return const SizedBox.shrink();
+    final scheme = Theme.of(context).colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Card(
+        child: ListTile(
+          leading: CircleAvatar(
+            backgroundColor: scheme.primaryContainer,
+            child: Text(
+              '${count.day}',
+              style: TextStyle(
+                fontWeight: FontWeight.w800,
+                color: scheme.onPrimaryContainer,
+              ),
+            ),
+          ),
+          title: const Text('ספירת העומר',
+              style: TextStyle(fontWeight: FontWeight.w700)),
+          subtitle: Text(count.isEveningCount
+              ? 'הערב סופרים יום ${count.day} — לנוסח המלא'
+              : 'יום ${count.day} מתוך 49 · ${OmerService.sefirahOfDay(count.day)}'),
+          trailing: const Icon(Icons.chevron_left),
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const OmerScreen()),
+          ),
+        ),
+      ),
     );
   }
 }

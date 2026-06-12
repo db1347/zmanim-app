@@ -30,18 +30,24 @@ cities including a high-latitude edge case; D1 retention ≥ 25%.
 **Launch blockers:** rabbinic advisor review of guardrails + a 200-question
 eval set; bracha scanner top-3 accuracy ≥ 95% on a held-out photo set.
 
-## Phase 3 — Shabbat Utilities ✅ / 🔜
+## Phase 3 — Shabbat Utilities & Daily Life ✅
 | # | Deliverable | Status |
 |---|------------|--------|
 | 1 | Kosher Shabbat Alarm — OS-scheduled (Android) + Shabbat mode (iOS) | ✅ |
 | 2 | Kosher Situations (meat/milk waiting customs) | ✅ |
-| 3 | Sefirat HaOmer reminder with streaks | 🔜 |
-| 4 | Home-screen zmanim widgets | 🔜 |
+| 3 | Sefirat HaOmer — full vocalized count, sefirot, streak, tzeit reminder | ✅ |
+| 4 | Hebrew-date events (yahrzeit/birthday/anniversary) + reminders | ✅ |
+| 5 | Daf Yomi tracker with streak | ✅ |
+
+## Phase 3.5 — Production polish ✅
+App icon (adaptive) · branded splash · bundled Hebrew fonts (Heebo, Frank
+Ruhl Libre) · dark-mode setting · 33-city list with search · release
+signing + R8 minification.
 
 ## Phase 4 — Backlog
-Siddur · minyan finder · kosher restaurants · yahrzeit · Daf Yomi tracker ·
+Siddur · minyan finder · kosher restaurants · home-screen zmanim widgets ·
 watch complications · travel mode · remote-timezone zmanim · real hechsher
-data integration · community product reporting.
+data integration · community product reporting · molad / kiddush levana.
 
 ---
 
