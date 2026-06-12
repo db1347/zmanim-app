@@ -34,9 +34,12 @@
    full-screen alarm-category notification with a raw alarm sound, the
    `FLAG_INSISTENT` loop, and `timeoutAfter` — it rings, then cancels itself.
    Zero interaction, works from Doze with the screen locked.
-2. **In-app Shabbat mode:** a dimmed wakelock clock that rings each alarm
-   and stops it by itself. The reliable path on iOS (which does not allow
-   long background ringing) and a backup on Android.
+2. **AlarmKit alarms (iOS 26+):** real system alarms via Apple's AlarmKit —
+   ring through Silent/Focus, full-screen on the Lock Screen, fire even if
+   the app was terminated. On older iOS, a self-ending chain of
+   notification chimes is scheduled instead.
+3. **In-app Shabbat mode:** a dimmed wakelock clock that rings each alarm
+   and stops it by itself — the universal backup, recommended on iOS < 26.
 
 ## Architecture
 
@@ -85,8 +88,12 @@ flutter_local_notifications (Gson) and ML Kit live in
 - Zmanim are computed in the device's timezone — viewing a saved city in
   another timezone shifts times.
 - Hechsher database is a starter dataset.
-- iOS cannot ring a long background alarm — use מצב שבת with the phone
-  plugged in; the scheduled notification still appears with a short sound.
+- iOS Shabbat alarms: on iOS 26+ the app schedules **real AlarmKit
+  alarms** — they ring through Silent mode, Focus, and app termination,
+  exactly like the system Clock (ring duration is system-managed rather
+  than the configured minutes). On older iOS a chain of self-ending
+  notification chimes approximates the alarm, and מצב שבת remains the
+  recommended path. Building the iOS target requires Xcode 26.
 - Ask-the-Rabbi answers are educational only — not a psak halacha.
 
 ## Planning docs

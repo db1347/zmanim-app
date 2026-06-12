@@ -30,6 +30,8 @@
 	<string>המצלמה מזהה מאכלים עבור סורק הברכות וסורקת ברקודים לבדיקת כשרות.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>בחירת תמונת מאכל קיימת עבור סורק הברכות.</string>
+	<key>NSAlarmKitUsageDescription</key>
+	<string>שעון מעורר כשר לשבת — מצלצל בזמן שקבעתם ונכבה מעצמו, ללא מגע במכשיר.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>

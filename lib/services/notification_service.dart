@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
@@ -12,6 +14,7 @@ import '../models/user_profile.dart';
 import 'alarm_store.dart';
 import 'event_store.dart';
 import 'hebrew_event_service.dart';
+import 'ios_alarm_service.dart';
 import 'reminder_rules.dart';
 import 'zmanim_service.dart';
 
@@ -338,17 +341,31 @@ class NotificationService {
   }
 
   /// Schedules each preset alarm on every restricted day (Shabbat / Yom Tov)
-  /// within the next [kAlarmScheduleWindowDays]. Exact scheduling so the
-  /// alarm fires even in Doze, with the device untouched the whole time.
+  /// within the next [kAlarmScheduleWindowDays].
   ///
-  /// IDs are deterministic — `base + dayIndex*10 + alarmIndex` — and capped
-  /// at 10 alarms per day so the 300–399 range can never collide with the
-  /// other ID ranges.
+  /// Three platform paths:
+  /// - iOS 26+: real AlarmKit alarms — ring through Silent/Focus, even with
+  ///   the app terminated.
+  /// - older iOS: a chain of standard notifications (one chime every 30 s
+  ///   for the ring duration) that ends by itself — limited to the next few
+  ///   restricted days to respect iOS's 64-pending-notification budget.
+  /// - Android: exact full-screen alarm-channel notifications with looping
+  ///   sound and self-cancel. IDs are deterministic
+  ///   (`base + dayIndex*10 + alarmIndex`, alarms capped at 10/day) so the
+  ///   300–399 range can never collide with the other ID ranges.
   Future<void> _scheduleShabbatAlarms(
     UserProfile p,
     List<ShabbatAlarm> alarms,
     DateTime now,
   ) async {
+    if (Platform.isIOS) {
+      if (await IosAlarmService.isAvailable()) {
+        await IosAlarmService.reschedule(p, alarms, now);
+      } else {
+        await _scheduleIosChainedAlarms(p, alarms, now);
+      }
+      return;
+    }
     if (alarms.isEmpty) return;
     final capped = alarms.take(10).toList();
     for (int i = 0; i < kAlarmScheduleWindowDays; i++) {
@@ -371,6 +388,55 @@ class NotificationService {
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         );
       }
+    }
+  }
+
+  /// iOS < 26 fallback: per alarm, a chain of standard notifications each
+  /// playing the (4 s) alarm sound — a chime every 30 s for the ring
+  /// duration, ending by itself. Cannot pierce Silent mode; the in-app
+  /// Shabbat mode remains the primary recommendation on these devices.
+  ///
+  /// Budget: 3 days × 5 alarms × 6 chain slots fits IDs in 300–389 and
+  /// stays well inside iOS's 64-pending-notification limit.
+  Future<void> _scheduleIosChainedAlarms(
+    UserProfile p,
+    List<ShabbatAlarm> alarms,
+    DateTime now,
+  ) async {
+    if (alarms.isEmpty) return;
+    const details = NotificationDetails(
+      iOS: DarwinNotificationDetails(
+        sound: 'alarm.wav',
+        interruptionLevel: InterruptionLevel.timeSensitive,
+      ),
+    );
+
+    var dayIndex = 0;
+    for (int i = 0;
+        i < kAlarmScheduleWindowDays && dayIndex < 3;
+        i++) {
+      final day = DateTime(now.year, now.month, now.day + i);
+      if (!ReminderRules.isRestrictedDay(day, inIsrael: p.inIsrael)) continue;
+
+      for (final (alarmIndex, alarm) in alarms.take(5).toList().indexed) {
+        final fireAt = DateTime(
+            day.year, day.month, day.day, alarm.hour, alarm.minute);
+        if (!fireAt.isAfter(now)) continue;
+
+        final chain = chainFireTimes(fireAt, alarm.ringMinutes);
+        for (final (chainIndex, t) in chain.indexed) {
+          await _plugin.zonedSchedule(
+            id: _alarmIdBase + dayIndex * 30 + alarmIndex * 6 + chainIndex,
+            payload: 'alarm',
+            title: 'שעון מעורר לשבת',
+            body: 'ההתראות ייפסקו מעצמן — אין צורך לגעת במכשיר.',
+            scheduledDate: tz.TZDateTime.from(t, tz.local),
+            notificationDetails: details,
+            androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          );
+        }
+      }
+      dayIndex++;
     }
   }
 
