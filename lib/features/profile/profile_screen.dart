@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/user_profile.dart';
+import '../../services/alarm_store.dart';
+import '../../services/backup_service.dart';
+import '../../services/event_store.dart';
 import '../../services/location_service.dart';
 import '../../services/notification_service.dart';
 import '../../services/settings_service.dart';
@@ -148,6 +152,28 @@ class ProfileScreen extends StatelessWidget {
           const _SectionHeader('בינה מלאכותית'),
           AiSettingsTile(profile: p, onUpdate: update),
           const Divider(),
+          const _SectionHeader('גיבוי ושחזור'),
+          ListTile(
+            leading: const Icon(Icons.upload_outlined),
+            title: const Text('ייצוא הגדרות ונתונים'),
+            subtitle: const Text('מעתיק הכול ללוח — בלי מפתח ה־API'),
+            onTap: () async {
+              final data = await BackupService.export(p);
+              await Clipboard.setData(ClipboardData(text: data));
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content: Text('הגיבוי הועתק ללוח — שמרו אותו במקום '
+                        'בטוח או הדביקו במכשיר החדש')));
+              }
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.download_outlined),
+            title: const Text('ייבוא מגיבוי'),
+            subtitle: const Text('מדביקים גיבוי שהועתק ללוח'),
+            onTap: () => _importBackup(context, p, update),
+          ),
+          const Divider(),
           const _SectionHeader('אודות'),
           const ListTile(
             leading: Icon(Icons.info_outline),
@@ -176,6 +202,60 @@ class ProfileScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _importBackup(
+    BuildContext context,
+    UserProfile current,
+    Future<void> Function(UserProfile) update,
+  ) async {
+    final clip = await Clipboard.getData(Clipboard.kTextPlain);
+    final raw = clip?.text;
+    if (raw == null || raw.trim().isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('הלוח ריק — קודם העתיקו גיבוי במכשיר הישן')));
+      }
+      return;
+    }
+
+    final parsed = await BackupService.parse(raw, current: current);
+    if (parsed == null) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('הטקסט בלוח אינו גיבוי תקין של יהדות')));
+      }
+      return;
+    }
+    if (!context.mounted) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('ייבוא גיבוי'),
+        content: Text(
+            'הגיבוי כולל ${parsed.events.length} תאריכים עבריים '
+            'ו־${parsed.alarms.length} התראות שבת, ויחליף את ההגדרות '
+            'הנוכחיות. להמשיך?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('ביטול')),
+          FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('ייבוא')),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    await EventStore.save(parsed.events);
+    await AlarmStore.save(parsed.alarms);
+    await update(parsed.profile); // also reschedules all notifications
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('הגיבוי שוחזר בהצלחה ✓')));
+    }
   }
 
   Future<void> _pickLocation(

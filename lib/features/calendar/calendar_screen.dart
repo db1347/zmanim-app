@@ -10,8 +10,11 @@ import '../../services/fast_day_service.dart';
 import '../../services/settings_service.dart';
 import '../../services/zmanim_service.dart';
 
-/// Dual Hebrew/Gregorian month view. Tap any day for its full details:
-/// Hebrew date, holiday, parsha, candle lighting / havdalah, fast times.
+/// Dual-mode month calendar:
+/// - Gregorian mode: civil month grid with Hebrew dates annotated.
+/// - Hebrew mode (לוח עברי): the Jewish month is the grid — Hebrew dates
+///   primary, civil dates annotated.
+/// Tap any day for its full details.
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
 
@@ -20,62 +23,114 @@ class CalendarScreen extends StatefulWidget {
 }
 
 class _CalendarScreenState extends State<CalendarScreen> {
+  bool _hebrewMode = false;
+
+  /// Gregorian mode: first of the displayed civil month.
   late DateTime _month;
 
-  // Cell labels are recomputed only when the month or profile changes,
-  // not per cell per frame.
+  /// Hebrew mode: Gregorian date of the 1st of the displayed Jewish month.
+  late DateTime _hebrewAnchor;
+
+  // Cells are recomputed only when the displayed month/mode changes.
   UserProfile? _cacheProfile;
-  DateTime? _cacheMonth;
+  String _cacheKey = '';
   List<String> _labels = const [];
   List<String> _hebrewNumbers = const [];
-  String _hebrewMonthRange = '';
+  String _titlePrimary = '';
+  String _titleSecondary = '';
 
   @override
   void initState() {
     super.initState();
     final now = DateTime.now();
     _month = DateTime(now.year, now.month);
+    _hebrewAnchor = _firstOfJewishMonth(now);
+  }
+
+  static DateTime _firstOfJewishMonth(DateTime date) {
+    final jc = JewishDate.fromDateTime(date);
+    return DateTime(
+        date.year, date.month, date.day - (jc.getJewishDayOfMonth() - 1));
+  }
+
+  /// First grid day + number of days for the current mode.
+  (DateTime, int) _gridRange() {
+    if (_hebrewMode) {
+      final jc = JewishDate.fromDateTime(_hebrewAnchor);
+      return (_hebrewAnchor, jc.getDaysInJewishMonth());
+    }
+    return (
+      DateTime(_month.year, _month.month, 1),
+      DateTime(_month.year, _month.month + 1, 0).day,
+    );
   }
 
   void _shift(int delta) {
-    setState(() => _month = DateTime(_month.year, _month.month + delta));
+    setState(() {
+      if (_hebrewMode) {
+        if (delta > 0) {
+          final days =
+              JewishDate.fromDateTime(_hebrewAnchor).getDaysInJewishMonth();
+          _hebrewAnchor = DateTime(_hebrewAnchor.year, _hebrewAnchor.month,
+              _hebrewAnchor.day + days);
+        } else {
+          final prevLast = DateTime(
+              _hebrewAnchor.year, _hebrewAnchor.month, _hebrewAnchor.day - 1);
+          _hebrewAnchor = _firstOfJewishMonth(prevLast);
+        }
+      } else {
+        _month = DateTime(_month.year, _month.month + delta);
+      }
+    });
   }
 
   void _jumpToToday() {
     final now = DateTime.now();
-    setState(() => _month = DateTime(now.year, now.month));
+    setState(() {
+      _month = DateTime(now.year, now.month);
+      _hebrewAnchor = _firstOfJewishMonth(now);
+    });
   }
 
-  void _refreshCells(UserProfile profile, int daysInMonth) {
-    if (identical(_cacheProfile, profile) && _cacheMonth == _month) return;
+  void _refreshCells(UserProfile profile) {
+    final (first, dayCount) = _gridRange();
+    final key = '$_hebrewMode|$first';
+    if (identical(_cacheProfile, profile) && _cacheKey == key) return;
     _cacheProfile = profile;
-    _cacheMonth = _month;
-    _labels = List.generate(
-        daysInMonth,
-        (i) => CalendarService.cellLabel(
-            profile, DateTime(_month.year, _month.month, i + 1)));
-    _hebrewNumbers = List.generate(
-        daysInMonth,
-        (i) => CalendarService.hebrewDayNumber(
-            profile, DateTime(_month.year, _month.month, i + 1)));
-    _hebrewMonthRange = _computeHebrewRange(profile, daysInMonth);
-  }
+    _cacheKey = key;
 
-  /// e.g. "סיון–תמוז תשפ״ו" (a Gregorian month spans two Hebrew months).
-  String _computeHebrewRange(UserProfile profile, int daysInMonth) {
+    _labels = List.generate(
+        dayCount,
+        (i) => CalendarService.cellLabel(profile,
+            DateTime(first.year, first.month, first.day + i)));
+    _hebrewNumbers = List.generate(
+        dayCount,
+        (i) => CalendarService.hebrewDayNumber(profile,
+            DateTime(first.year, first.month, first.day + i)));
+
     final fmt = HebrewDateFormatter()..hebrewFormat = true;
-    final first = JewishCalendar.fromDateTime(
-        DateTime(_month.year, _month.month, 1))
+    final firstJc = JewishCalendar.fromDateTime(first)
       ..inIsrael = profile.inIsrael;
-    final last = JewishCalendar.fromDateTime(
-        DateTime(_month.year, _month.month, daysInMonth))
+    final last = DateTime(first.year, first.month, first.day + dayCount - 1);
+    final lastJc = JewishCalendar.fromDateTime(last)
       ..inIsrael = profile.inIsrael;
-    final firstMonth = fmt.formatMonth(first);
-    final lastMonth = fmt.formatMonth(last);
-    final year = fmt.formatHebrewNumber(last.getJewishYear() % 1000);
-    return firstMonth == lastMonth
-        ? '$firstMonth $year'
-        : '$firstMonth–$lastMonth $year';
+
+    if (_hebrewMode) {
+      _titlePrimary =
+          '${fmt.formatMonth(firstJc)} ${fmt.formatHebrewNumber(firstJc.getJewishYear() % 1000)}';
+      final gregFirst = DateFormat.MMMM().format(first);
+      final gregLast = DateFormat.MMMM().format(last);
+      _titleSecondary = gregFirst == gregLast
+          ? DateFormat.yMMMM().format(first)
+          : '$gregFirst–${DateFormat.yMMMM().format(last)}';
+    } else {
+      _titlePrimary = DateFormat.yMMMM().format(_month);
+      final hebFirst = fmt.formatMonth(firstJc);
+      final hebLast = fmt.formatMonth(lastJc);
+      final year = fmt.formatHebrewNumber(lastJc.getJewishYear() % 1000);
+      _titleSecondary =
+          hebFirst == hebLast ? '$hebFirst $year' : '$hebFirst–$hebLast $year';
+    }
   }
 
   @override
@@ -84,14 +139,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final scheme = Theme.of(context).colorScheme;
     final today = DateTime.now();
 
-    final firstOfMonth = DateTime(_month.year, _month.month, 1);
-    final daysInMonth = DateTime(_month.year, _month.month + 1, 0).day;
-    // Grid starts on Sunday (rightmost column in RTL).
-    final leadingBlanks = firstOfMonth.weekday % 7;
-    _refreshCells(profile, daysInMonth);
+    _refreshCells(profile);
+    final (first, dayCount) = _gridRange();
+    final leadingBlanks = first.weekday % 7; // grid starts Sunday
 
-    final isCurrentMonth =
-        _month.year == today.year && _month.month == today.month;
+    final todayDate = DateTime(today.year, today.month, today.day);
+    final isCurrentMonth = !todayDate.isBefore(first) &&
+        todayDate.isBefore(
+            DateTime(first.year, first.month, first.day + dayCount));
 
     return Scaffold(
       appBar: AppBar(
@@ -103,6 +158,23 @@ class _CalendarScreenState extends State<CalendarScreen> {
               icon: const Icon(Icons.today),
               onPressed: _jumpToToday,
             ),
+          IconButton(
+            tooltip: _hebrewMode ? 'מעבר ללוח לועזי' : 'מעבר ללוח עברי',
+            icon: Icon(_hebrewMode
+                ? Icons.calendar_view_month
+                : Icons.synagogue_outlined),
+            onPressed: () => setState(() {
+              _hebrewMode = !_hebrewMode;
+              // Keep the view anchored near what was on screen.
+              if (_hebrewMode) {
+                _hebrewAnchor = _firstOfJewishMonth(
+                    isCurrentMonth ? todayDate : _month);
+              } else {
+                final ref = isCurrentMonth ? todayDate : _hebrewAnchor;
+                _month = DateTime(ref.year, ref.month);
+              }
+            }),
+          ),
         ],
       ),
       body: Column(
@@ -119,20 +191,30 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   child: Column(
                     children: [
                       Text(
-                        DateFormat.yMMMM().format(_month),
+                        _titlePrimary,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.w700),
+                        style: _hebrewMode
+                            ? TextStyle(
+                                fontFamily: YeadutTheme.displayFont,
+                                fontSize: 20,
+                                fontWeight: FontWeight.w900,
+                                color: scheme.primary,
+                              )
+                            : const TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.w700),
                       ),
                       Text(
-                        _hebrewMonthRange,
+                        _titleSecondary,
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontFamily: YeadutTheme.displayFont,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: scheme.primary,
-                        ),
+                        style: _hebrewMode
+                            ? TextStyle(
+                                fontSize: 13, color: scheme.outline)
+                            : TextStyle(
+                                fontFamily: YeadutTheme.displayFont,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: scheme.primary,
+                              ),
                       ),
                     ],
                   ),
@@ -170,15 +252,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 crossAxisCount: 7,
                 childAspectRatio: 0.62,
               ),
-              itemCount: leadingBlanks + daysInMonth,
+              itemCount: leadingBlanks + dayCount,
               itemBuilder: (context, index) {
                 if (index < leadingBlanks) return const SizedBox.shrink();
-                final dayNum = index - leadingBlanks + 1;
-                final date = DateTime(_month.year, _month.month, dayNum);
-                final isToday = date.year == today.year &&
-                    date.month == today.month &&
-                    date.day == today.day;
-                final label = _labels[dayNum - 1];
+                final i = index - leadingBlanks;
+                final date =
+                    DateTime(first.year, first.month, first.day + i);
+                final isToday = date == todayDate;
+                final label = _labels[i];
                 final isShabbat = date.weekday == DateTime.saturday;
 
                 return InkWell(
@@ -200,27 +281,53 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           : null,
                     ),
                     child: Column(
-                      children: [
-                        Text('$dayNum',
-                            style: const TextStyle(
-                                fontSize: 13, fontWeight: FontWeight.w700)),
-                        Text(
-                          _hebrewNumbers[dayNum - 1],
-                          style: TextStyle(
-                              fontSize: 11, color: scheme.primary),
-                        ),
-                        if (label.isNotEmpty)
-                          Expanded(
-                            child: Text(
-                              label,
-                              textAlign: TextAlign.center,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                  fontSize: 8.5, color: scheme.tertiary),
-                            ),
-                          ),
-                      ],
+                      children: _hebrewMode
+                          ? [
+                              Text(_hebrewNumbers[i],
+                                  style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w800,
+                                      color: scheme.onSurface)),
+                              Text('${date.day}',
+                                  style: TextStyle(
+                                      fontSize: 10.5,
+                                      color: scheme.primary)),
+                              if (label.isNotEmpty)
+                                Expanded(
+                                  child: Text(
+                                    label,
+                                    textAlign: TextAlign.center,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                        fontSize: 8.5,
+                                        color: scheme.tertiary),
+                                  ),
+                                ),
+                            ]
+                          : [
+                              Text('${date.day}',
+                                  style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700)),
+                              Text(
+                                _hebrewNumbers[i],
+                                style: TextStyle(
+                                    fontSize: 11, color: scheme.primary),
+                              ),
+                              if (label.isNotEmpty)
+                                Expanded(
+                                  child: Text(
+                                    label,
+                                    textAlign: TextAlign.center,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                        fontSize: 8.5,
+                                        color: scheme.tertiary),
+                                  ),
+                                ),
+                            ],
                     ),
                   ),
                 );
@@ -243,7 +350,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
 }
 
 /// Everything about one day: dates, holiday, parsha, candle lighting /
-/// havdalah, fast times, omer, daf yomi, sunrise/sunset.
+/// havdalah, fast times, omer, daf yomi, molad on Rosh Chodesh.
 class _DayDetailsSheet extends StatelessWidget {
   const _DayDetailsSheet({required this.profile, required this.date});
 
@@ -274,6 +381,14 @@ class _DayDetailsSheet extends StatelessWidget {
         ? ZmanimService.tzeit(calendar, profile.tzeitShita)
         : null;
 
+    String? moladLabel;
+    if (info.isRoshChodesh) {
+      try {
+        final molad = jc.getMoladAsDateTime();
+        moladLabel = DateFormat('EEEE HH:mm').format(molad);
+      } catch (_) {}
+    }
+
     final rows = <(IconData, String, String)>[
       (
         Icons.wb_sunny_outlined,
@@ -295,6 +410,8 @@ class _DayDetailsSheet extends StatelessWidget {
           fast.name,
           '${_fmtOrDash(fast.start, fmt)} – ${_fmtOrDash(fast.end, fmt)}'
         ),
+      if (moladLabel != null)
+        (Icons.brightness_3_outlined, 'המולד (משוער)', moladLabel),
       if (info.omerDay > 0)
         (Icons.filter_9_plus_outlined, 'ספירת העומר', 'יום ${info.omerDay}'),
       if (info.dafYomi.isNotEmpty)
