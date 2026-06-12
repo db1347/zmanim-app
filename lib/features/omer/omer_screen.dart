@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:kosher_dart/kosher_dart.dart';
 import 'package:provider/provider.dart';
@@ -21,10 +23,22 @@ class _OmerScreenState extends State<OmerScreen> {
   int _jewishYear = 0;
   bool _loaded = false;
 
+  /// Refreshes the screen across tzeit, so a screen left open at dusk
+  /// flips to the new evening's count by itself.
+  Timer? _refresh;
+
   @override
   void initState() {
     super.initState();
     _load();
+    _refresh = Timer.periodic(
+        const Duration(seconds: 30), (_) => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    _refresh?.cancel();
+    super.dispose();
   }
 
   Future<void> _load() async {

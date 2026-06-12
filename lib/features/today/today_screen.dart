@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:kosher_dart/kosher_dart.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/theme.dart';
@@ -41,6 +42,10 @@ class _TodayScreenState extends State<TodayScreen> {
   FastInfo? _fast;
   DateTime? _tzeitToday;
   bool _eruvToday = false;
+  // Omer day numbers for daytime and after-tzeit, cached so the 1 Hz tick
+  // never touches the zmanim engine (-1 = not during the omer).
+  int _omerDayCount = -1;
+  int _omerEveningCount = -1;
 
   @override
   void initState() {
@@ -72,6 +77,13 @@ class _TodayScreenState extends State<TodayScreen> {
         ZmanimService.calendarFor(profile, _now), profile.tzeitShita);
     _eruvToday =
         ReminderRules.needsEruvTavshilin(today, inIsrael: profile.inIsrael);
+    _omerDayCount = (JewishCalendar.fromDateTime(today)
+          ..inIsrael = profile.inIsrael)
+        .getDayOfOmer();
+    _omerEveningCount = (JewishCalendar.fromDateTime(
+            DateTime(today.year, today.month, today.day + 1))
+          ..inIsrael = profile.inIsrael)
+        .getDayOfOmer();
   }
 
   void _copyZmanim(DayZmanim day, JewishDayInfo info, String location) {
@@ -145,7 +157,9 @@ class _TodayScreenState extends State<TodayScreen> {
             ShabbatCard(times: shabbat, now: _now),
             const SizedBox(height: 12),
           ],
-          _OmerCard(profile: profile, now: _now),
+          _OmerCard(
+            count: _omerCountNow(),
+          ),
           Card(
             child: Column(
               children: [
@@ -167,6 +181,14 @@ class _TodayScreenState extends State<TodayScreen> {
         ],
       ),
     );
+  }
+
+  /// The omer count relevant right now, from cached day numbers only.
+  OmerCount? _omerCountNow() {
+    final isEvening = _tzeitToday != null && _now.isAfter(_tzeitToday!);
+    final day = isEvening ? _omerEveningCount : _omerDayCount;
+    if (day < 1 || day > 49) return null;
+    return OmerCount(day: day, isEveningCount: isEvening);
   }
 
   Widget _zmanRow(BuildContext context, ZmanItem item,
@@ -419,14 +441,13 @@ class _EruvTavshilinBanner extends StatelessWidget {
 
 /// Compact Sefirat HaOmer entry point — only visible during the omer.
 class _OmerCard extends StatelessWidget {
-  const _OmerCard({required this.profile, required this.now});
+  const _OmerCard({required this.count});
 
-  final UserProfile profile;
-  final DateTime now;
+  final OmerCount? count;
 
   @override
   Widget build(BuildContext context) {
-    final count = OmerService.currentCount(profile, now);
+    final count = this.count;
     if (count == null) return const SizedBox.shrink();
     final scheme = Theme.of(context).colorScheme;
 

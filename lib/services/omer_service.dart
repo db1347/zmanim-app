@@ -91,7 +91,9 @@ class OmerService {
   }
 
   /// Remainder days after full weeks: וְיוֹם אֶחָד / וּשְׁנֵי יָמִים / …
+  /// Callers must guard: full-week days (rest == 0) never reach here.
   static String _remainderPhrase(int d) {
+    assert(d >= 1 && d <= 6, 'remainder must be 1..6, got $d');
     const joined = {
       1: 'וְיוֹם אֶחָד',
       2: 'וּשְׁנֵי יָמִים',

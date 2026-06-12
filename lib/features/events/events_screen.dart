@@ -251,8 +251,10 @@ class _AddEventDialogState extends State<_AddEventDialog> {
           onPressed: () {
             final name = _name.text.trim();
             if (name.isEmpty) return;
+            // Microseconds + a random suffix: unique even under rapid adds.
             Navigator.of(context).pop(HebrewEvent(
-              id: DateTime.now().microsecondsSinceEpoch.toString(),
+              id: '${DateTime.now().microsecondsSinceEpoch}-'
+                  '${UniqueKey().hashCode}',
               name: name,
               type: _type,
               jewishMonth: _month,

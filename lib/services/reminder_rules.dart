@@ -60,7 +60,9 @@ class ReminderRules {
     if (!isYomTov(tomorrow)) return false;
 
     // Walk forward through the Yom Tov run; eruv is needed iff the run
-    // reaches Friday (so Shabbat follows immediately).
+    // reaches Friday (so Shabbat follows immediately). This is complete:
+    // if the run ends on Thursday, Friday is an ordinary cooking day and
+    // no eruv is required — Shabbat after a weekday gap never needs one.
     var day = tomorrow;
     for (var i = 0; i < 3 && isYomTov(day); i++) {
       if (day.weekday == DateTime.friday) return true;

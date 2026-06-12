@@ -223,6 +223,11 @@ class NotificationService {
   /// Nightly Sefirat HaOmer reminder, ~20 min after tzeit (when the new
   /// count begins). The evening of civil day D belongs to Jewish day D+1 —
   /// suppressed when that evening is Shabbat or Yom Tov.
+  ///
+  /// Note: in the Diaspora this also suppresses night 1 (second Seder) —
+  /// deliberately. A push notification on Yom Tov is exactly what an
+  /// observant user must not receive; the count is said publicly at the
+  /// Seder anyway. Same policy as every Friday-night count.
   Future<void> _scheduleOmer(UserProfile p, DateTime now) async {
     for (int i = 0; i < kReminderScheduleWindowDays; i++) {
       final day = DateTime(now.year, now.month, now.day + i);
@@ -283,10 +288,15 @@ class NotificationService {
   /// Hebrew-date event reminders: candle-lighting note the afternoon
   /// before (yahrzeit candles are lit at sunset) + morning-of, skipping
   /// mornings of Shabbat/Yom Tov.
+  ///
+  /// IDs are deterministic — `base + eventIndex*2 (+1)` over the soonest 45
+  /// events — keeping the 500–591 range clear of the eruv range at 600.
   Future<void> _scheduleEvents(
       UserProfile p, List<HebrewEvent> events, DateTime now) async {
-    var id = _eventIdBase;
-    for (final event in events) {
+    final upcoming = [...events]..sort((a, b) =>
+        HebrewEventService.nextOccurrence(a, now)
+            .compareTo(HebrewEventService.nextOccurrence(b, now)));
+    for (final (index, event) in upcoming.take(45).toList().indexed) {
       final occurrence = HebrewEventService.nextOccurrence(event, now);
       final daysAway = occurrence
           .difference(DateTime(now.year, now.month, now.day))
@@ -298,7 +308,7 @@ class NotificationService {
             occurrence.day - 1, 16, 0);
         if (eve.isAfter(now)) {
           await _plugin.zonedSchedule(
-            id: id++,
+            id: _eventIdBase + index * 2,
             payload: 'events',
             title: '🕯️ ${event.name}',
             body: 'היארצייט מתחיל הערב — מדליקים נר נשמה לפני השקיעה.',
@@ -314,7 +324,7 @@ class NotificationService {
       if (morning.isAfter(now) &&
           !ReminderRules.isRestrictedDay(occurrence, inIsrael: p.inIsrael)) {
         await _plugin.zonedSchedule(
-          id: id++,
+          id: _eventIdBase + index * 2 + 1,
           payload: 'events',
           title: '${event.type.emoji} ${event.name}',
           body: 'היום: ${event.type.label} '
@@ -330,24 +340,28 @@ class NotificationService {
   /// Schedules each preset alarm on every restricted day (Shabbat / Yom Tov)
   /// within the next [kAlarmScheduleWindowDays]. Exact scheduling so the
   /// alarm fires even in Doze, with the device untouched the whole time.
+  ///
+  /// IDs are deterministic — `base + dayIndex*10 + alarmIndex` — and capped
+  /// at 10 alarms per day so the 300–399 range can never collide with the
+  /// other ID ranges.
   Future<void> _scheduleShabbatAlarms(
     UserProfile p,
     List<ShabbatAlarm> alarms,
     DateTime now,
   ) async {
     if (alarms.isEmpty) return;
-    var id = _alarmIdBase;
+    final capped = alarms.take(10).toList();
     for (int i = 0; i < kAlarmScheduleWindowDays; i++) {
       final day = DateTime(now.year, now.month, now.day + i);
       if (!ReminderRules.isRestrictedDay(day, inIsrael: p.inIsrael)) continue;
 
-      for (final alarm in alarms) {
+      for (final (alarmIndex, alarm) in capped.indexed) {
         final fireAt = DateTime(
             day.year, day.month, day.day, alarm.hour, alarm.minute);
         if (!fireAt.isAfter(now)) continue;
 
         await _plugin.zonedSchedule(
-          id: id++,
+          id: _alarmIdBase + i * 10 + alarmIndex,
           payload: 'alarm',
           title: 'שעון מעורר לשבת',
           body: 'ההתראה תיכבה מעצמה בעוד ${alarm.ringMinutes} דקות — '
