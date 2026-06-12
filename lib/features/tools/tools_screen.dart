@@ -7,6 +7,7 @@ import '../events/events_screen.dart';
 import '../hechsher/hechsher_screen.dart';
 import '../learning/learning_screen.dart';
 import '../omer/omer_screen.dart';
+import '../tefila/tefilat_haderech_screen.dart';
 import 'kosher_situations_screen.dart';
 
 class _Tool {
@@ -38,6 +39,8 @@ class ToolsScreen extends StatelessWidget {
         const Color(0xFF54708C), () => const EventsScreen()),
     _Tool('הדף היומי', 'מעקב ורצף', Icons.menu_book,
         const Color(0xFF8C6D46), () => const LearningScreen()),
+    _Tool('תפילת הדרך', 'לפני יציאה לדרך', Icons.directions_car,
+        const Color(0xFF3E8A78), () => const TefilatHaderechScreen()),
     _Tool('בשר וחלב', 'זמני המתנה', Icons.help_center,
         const Color(0xFF456FA6), () => const KosherSituationsScreen()),
   ];

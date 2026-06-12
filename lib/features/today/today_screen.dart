@@ -36,8 +36,10 @@ class _TodayScreenState extends State<TodayScreen> {
   UserProfile? _cacheProfile;
   DayZmanim? _day;
   JewishDayInfo? _info;
+  JewishDayInfo? _tomorrowInfo;
   ShabbatTimes? _shabbat;
   FastInfo? _fast;
+  DateTime? _tzeitToday;
   bool _eruvToday = false;
 
   @override
@@ -62,8 +64,12 @@ class _TodayScreenState extends State<TodayScreen> {
     _cacheProfile = profile;
     _day = ZmanimService.dayZmanim(profile, _now);
     _info = CalendarService.dayInfo(profile, _now);
+    _tomorrowInfo = CalendarService.dayInfo(
+        profile, DateTime(today.year, today.month, today.day + 1));
     _shabbat = ZmanimService.nextShabbatOrYomTov(profile, _now);
     _fast = FastDayService.fastInfo(profile, _now);
+    _tzeitToday = ZmanimService.tzeit(
+        ZmanimService.calendarFor(profile, _now), profile.tzeitShita);
     _eruvToday =
         ReminderRules.needsEruvTavshilin(today, inIsrael: profile.inIsrael);
   }
@@ -111,7 +117,15 @@ class _TodayScreenState extends State<TodayScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
         children: [
-          _DateHeader(info: info, now: _now, locationName: profile.locationName),
+          _DateHeader(
+            info: info,
+            now: _now,
+            locationName: profile.locationName,
+            // After tzeit the Jewish day flips — show tomorrow's date.
+            nightDate: _tzeitToday != null && _now.isAfter(_tzeitToday!)
+                ? _tomorrowInfo?.hebrewDate
+                : null,
+          ),
           const SizedBox(height: 12),
           NextZmanCard(
             next: day.nextAfter(_now),
@@ -128,7 +142,7 @@ class _TodayScreenState extends State<TodayScreen> {
             const SizedBox(height: 12),
           ],
           if (shabbat != null) ...[
-            ShabbatCard(times: shabbat),
+            ShabbatCard(times: shabbat, now: _now),
             const SizedBox(height: 12),
           ],
           _OmerCard(profile: profile, now: _now),
@@ -231,11 +245,15 @@ class _DateHeader extends StatelessWidget {
     required this.info,
     required this.now,
     required this.locationName,
+    this.nightDate,
   });
 
   final JewishDayInfo info;
   final DateTime now;
   final String locationName;
+
+  /// Non-null after tzeit: the Hebrew date that began at nightfall.
+  final String? nightDate;
 
   @override
   Widget build(BuildContext context) {
@@ -250,7 +268,7 @@ class _DateHeader extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          info.hebrewDate,
+          nightDate ?? info.hebrewDate,
           style: TextStyle(
             fontFamily: YeadutTheme.displayFont,
             fontSize: 26,
@@ -258,6 +276,14 @@ class _DateHeader extends StatelessWidget {
             color: scheme.primary,
           ),
         ),
+        if (nightDate != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 2),
+            child: Text(
+              '🌙 ירד הלילה — התאריך העברי התחלף',
+              style: TextStyle(fontSize: 12, color: scheme.tertiary),
+            ),
+          ),
         const SizedBox(height: 2),
         Text(
           DateFormat.yMMMMEEEEd().format(now),

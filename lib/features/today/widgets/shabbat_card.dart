@@ -4,16 +4,26 @@ import 'package:intl/intl.dart';
 import '../../../models/zman_item.dart';
 
 /// Candle lighting / havdalah for the upcoming (or current) Shabbat or chag.
+/// Within six hours of candle lighting it adds a live countdown — the
+/// number that matters most on a Friday afternoon.
 class ShabbatCard extends StatelessWidget {
-  const ShabbatCard({super.key, required this.times});
+  const ShabbatCard({super.key, required this.times, required this.now});
 
   final ShabbatTimes times;
+  final DateTime now;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final dayFmt = DateFormat.EEEE();
     final timeFmt = DateFormat.Hm();
+
+    Duration? untilCandles;
+    final lighting = times.candleLighting;
+    if (lighting != null) {
+      final d = lighting.difference(now);
+      if (!d.isNegative && d <= const Duration(hours: 6)) untilCandles = d;
+    }
 
     return Card(
       color: scheme.tertiaryContainer,
@@ -59,10 +69,37 @@ class ShabbatCard extends StatelessWidget {
                   : '${dayFmt.format(times.havdalahDay!)} '
                       '${timeFmt.format(times.havdalah!)}',
             ),
+            if (untilCandles != null) ...[
+              const SizedBox(height: 10),
+              Container(
+                width: double.infinity,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: scheme.onTertiaryContainer.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '🕯️ עוד ${_fmtDuration(untilCandles)} להדלקת נרות',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 15,
+                    color: scheme.onTertiaryContainer,
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
     );
+  }
+
+  static String _fmtDuration(Duration d) {
+    final h = d.inHours;
+    final m = d.inMinutes.remainder(60);
+    if (h > 0) return '$h:${m.toString().padLeft(2, '0')} שעות';
+    return '$m דקות';
   }
 
   Widget _row(BuildContext context,

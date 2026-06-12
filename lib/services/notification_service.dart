@@ -56,11 +56,35 @@ class NotificationService {
       iOS: DarwinInitializationSettings(),
     );
     try {
-      await _plugin.initialize(settings: settings);
+      await _plugin.initialize(
+        settings: settings,
+        onDidReceiveNotificationResponse: (response) =>
+            onNotificationTap?.call(response.payload),
+      );
       _initialized = true;
+
+      // If the app was cold-started by tapping a notification, stash the
+      // payload so the UI can route to the right screen once it's up.
+      final launch = await _plugin.getNotificationAppLaunchDetails();
+      if (launch?.didNotificationLaunchApp ?? false) {
+        _launchPayload = launch?.notificationResponse?.payload;
+      }
     } catch (e) {
       debugPrint('NotificationService: init failed: $e');
     }
+  }
+
+  /// Set by the app layer to deep-link when a notification is tapped while
+  /// the app is running.
+  void Function(String? payload)? onNotificationTap;
+
+  String? _launchPayload;
+
+  /// One-shot: the payload that cold-started the app, if any.
+  String? consumeLaunchPayload() {
+    final p = _launchPayload;
+    _launchPayload = null;
+    return p;
   }
 
   Future<bool> requestPermissions() async {
@@ -161,6 +185,7 @@ class NotificationService {
         id: _tefillinIdBase + i,
         title: 'תפילין',
         body: 'הגיע הזמן להניח תפילין.',
+        payload: 'today',
         scheduledDate: tz.TZDateTime.from(fireAt, tz.local),
         notificationDetails: _reminderDetails,
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
@@ -184,6 +209,7 @@ class NotificationService {
 
       await _plugin.zonedSchedule(
         id: _candleIdBase + i,
+        payload: 'today',
         title: 'הדלקת נרות בקרוב',
         body: 'הדלקת נרות בעוד ${p.candleReminderLeadMinutes} דקות '
             '(${_fmt(candles)}).',
@@ -220,6 +246,7 @@ class NotificationService {
 
       await _plugin.zonedSchedule(
         id: _omerIdBase + i,
+        payload: 'omer',
         title: 'ספירת העומר',
         body: 'הערב סופרים יום $omerDay לעומר 🌙',
         scheduledDate: tz.TZDateTime.from(fireAt, tz.local),
@@ -242,6 +269,7 @@ class NotificationService {
 
       await _plugin.zonedSchedule(
         id: _eruvIdBase + i,
+        payload: 'today',
         title: 'עירוב תבשילין',
         body: 'יום טוב נכנס הערב ונמשך לשבת — מניחים עירוב תבשילין '
             'היום לפני כניסת החג.',
@@ -271,6 +299,7 @@ class NotificationService {
         if (eve.isAfter(now)) {
           await _plugin.zonedSchedule(
             id: id++,
+            payload: 'events',
             title: '🕯️ ${event.name}',
             body: 'היארצייט מתחיל הערב — מדליקים נר נשמה לפני השקיעה.',
             scheduledDate: tz.TZDateTime.from(eve, tz.local),
@@ -286,6 +315,7 @@ class NotificationService {
           !ReminderRules.isRestrictedDay(occurrence, inIsrael: p.inIsrael)) {
         await _plugin.zonedSchedule(
           id: id++,
+          payload: 'events',
           title: '${event.type.emoji} ${event.name}',
           body: 'היום: ${event.type.label} '
               '(${HebrewEventService.dateLabel(event)}).',
@@ -318,6 +348,7 @@ class NotificationService {
 
         await _plugin.zonedSchedule(
           id: id++,
+          payload: 'alarm',
           title: 'שעון מעורר לשבת',
           body: 'ההתראה תיכבה מעצמה בעוד ${alarm.ringMinutes} דקות — '
               'אין צורך לגעת במכשיר.',

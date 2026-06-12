@@ -15,6 +15,7 @@ Future<void> main() async {
   final settings = await SettingsService.load();
   final notifications = NotificationService();
   await notifications.init();
+  notifications.onNotificationTap = routeNotificationPayload;
   // Top up the rolling reminder + Shabbat-alarm window on every launch.
   await notifications.rescheduleAll(settings.profile);
 

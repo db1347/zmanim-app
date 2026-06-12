@@ -118,6 +118,13 @@ class ZmanimService {
     return DayZmanim(date: date, items: [...withTimes, ...without]);
   }
 
+  /// Whether [now] is after tzeit — i.e. the *next* Jewish day has begun
+  /// even though the civil date hasn't changed yet.
+  static bool isAfterTzeit(UserProfile p, DateTime now) {
+    final t = tzeit(calendarFor(p, now), p.tzeitShita);
+    return t != null && now.isAfter(t);
+  }
+
   /// True when melacha is restricted on [day] (Shabbat or Yom Tov).
   static bool _isRestricted(UserProfile p, DateTime day) {
     final jc = JewishCalendar.fromDateTime(day)..inIsrael = p.inIsrael;
