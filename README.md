@@ -27,6 +27,13 @@ What was interesting to build:
 - **Offline first.** Everything deterministic works without a network. The AI
   features use the user's own API key, stored only on the device.
 
+<p align="center">
+  <img src="docs/screenshots/today.jpg" width="200" alt="Today: Hebrew date, next zman countdown, Shabbat times">
+  <img src="docs/screenshots/tools.jpg" width="200" alt="Tools">
+  <img src="docs/screenshots/compass.jpg" width="200" alt="Prayer compass toward Jerusalem">
+  <img src="docs/screenshots/profile.jpg" width="200" alt="Profile: location, nusach, zmanim method">
+</p>
+
 ## Features
 
 | Feature | Status | Notes |
