@@ -1,6 +1,31 @@
 # יהדות (Yeadut)
 
-אפליקציית סגנון חיים יהודית מקיפה — בעברית, RTL מלא. Built with Flutter.
+A Hebrew-first Jewish lifestyle app for Android and iOS, built with Flutter.
+Halachic times (zmanim) by the user's chosen method, a real Hebrew calendar,
+Sefirat HaOmer, Hebrew-date events, and Shabbat alarms that ring and stop on
+their own without anyone touching the phone — implemented as real OS alarms
+(exact Android alarms, AlarmKit on iOS 26+).
+
+אפליקציית סגנון חיים יהודית מקיפה — בעברית, RTL מלא: זמני היום לפי שיטת המשתמש,
+לוח עברי, ספירת העומר, אירועים לפי תאריך עברי, ושעון מעורר לשבת שמצלצל ומפסיק לבד.
+
+**Status:** feature-complete v1.0 (Android signed release build; iOS needs Xcode 26).
+Designed, written and tested by me (Daniel B). 90 unit tests cover the pure logic:
+zmanim, the Hebrew calendar edge cases (Adar in leap years, the night date flip),
+the Omer count, reminder rules and the alarm schedules.
+
+What was interesting to build:
+
+- **Time that depends on halacha, not on the clock.** The Hebrew date changes at
+  nightfall, not at midnight; zmanim differ by method (Gra, Magen Avraham) and by
+  location; reminders must be silenced on Shabbat, Yom Tov, Chol HaMoed and Tisha
+  B'Av. These rules live in pure Dart services with no Flutter dependency, so they
+  are unit-tested directly.
+- **An alarm nobody may touch.** On Shabbat the user can't turn an alarm off, so it
+  has to ring for a set time and stop itself, even with the screen locked, in
+  Doze, or after the app was killed. See [How the Shabbat alarm works](#how-the-shabbat-alarm-works).
+- **Offline first.** Everything deterministic works without a network. The AI
+  features use the user's own API key, stored only on the device.
 
 ## Features
 
@@ -87,7 +112,9 @@ flutter_local_notifications (Gson) and ML Kit live in
 
 - Zmanim are computed in the device's timezone — viewing a saved city in
   another timezone shifts times.
-- Hechsher database is a starter dataset.
+- Hechsher database is a five-product demonstration dataset to show the barcode
+  flow end to end. It is **not** authoritative kashrut information — there is no
+  unified public kashrut API, and production would need a real data source.
 - iOS Shabbat alarms: on iOS 26+ the app schedules **real AlarmKit
   alarms** — they ring through Silent mode, Focus, and app termination,
   exactly like the system Clock (ring duration is system-managed rather
@@ -101,3 +128,7 @@ flutter_local_notifications (Gson) and ML Kit live in
 See [docs/01-feature-spec.md](docs/01-feature-spec.md),
 [docs/02-roadmap.md](docs/02-roadmap.md),
 [docs/03-ux-flows.md](docs/03-ux-flows.md).
+
+## License
+
+[MIT](LICENSE)
